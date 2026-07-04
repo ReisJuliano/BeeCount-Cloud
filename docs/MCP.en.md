@@ -39,10 +39,23 @@ The LLM picks the right tool, no need to open BeeCount. Transactions created via
 
 ### 2. Configure the LLM client
 
-> All three clients use `mcp-remote` (npm) as a stdio→SSE bridge. Replace the placeholders below:
+BeeCount Cloud's MCP uses **Streamable HTTP** (a single endpoint): your deployment URL plus `/api/v1/mcp`.
+
+> Replace the placeholders below:
 >
 > - `https://your-domain.com` → your BeeCount Cloud URL (can also be `http://192.168.x.x:8080`, Tailscale, etc.)
 > - `bcmcp_xxx...` → the PAT plaintext from step 1
+
+**Recommended: clients that speak Streamable HTTP natively connect directly, no `mcp-remote` needed.** For example, Claude Code:
+
+```bash
+claude mcp add --transport http beecount https://your-domain.com/api/v1/mcp \
+  --header "Authorization: Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+Open a new session; `claude mcp get beecount` showing `✔ Connected` means it's set. Any client with a built-in HTTP MCP client works the same: point it at the endpoint URL `https://your-domain.com/api/v1/mcp` with an `Authorization: Bearer bcmcp_…` header.
+
+**stdio-only clients (Claude Desktop / Cursor / Cline)** use `mcp-remote` (npm) to bridge to the same HTTP endpoint — **use the URL `/api/v1/mcp`, no longer `/sse`**; `mcp-remote` negotiates Streamable HTTP automatically:
 
 #### Claude Desktop
 
@@ -58,7 +71,7 @@ Config file:
       "args": [
         "-y",
         "mcp-remote",
-        "https://your-domain.com/api/v1/mcp/sse",
+        "https://your-domain.com/api/v1/mcp",
         "--header",
         "Authorization:Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       ]
@@ -83,7 +96,7 @@ Fully quit Claude Desktop (`Cmd+Q`) and relaunch — the 🔌 "BeeCount" indicat
       "args": [
         "-y",
         "mcp-remote",
-        "https://your-domain.com/api/v1/mcp/sse",
+        "https://your-domain.com/api/v1/mcp",
         "--header",
         "Authorization:Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       ]
@@ -106,7 +119,7 @@ VS Code → Cline icon → top-right `…` → **Edit MCP Settings**:
       "args": [
         "-y",
         "mcp-remote",
-        "https://your-domain.com/api/v1/mcp/sse",
+        "https://your-domain.com/api/v1/mcp",
         "--header",
         "Authorization:Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       ],
@@ -134,11 +147,12 @@ Once connected, ask the LLM:
 
 | | |
 |---|---|
-| SSE channel | `https://your-domain.com/api/v1/mcp/sse` |
-| Message back-channel | `https://your-domain.com/api/v1/mcp/messages/` |
+| MCP endpoint (Streamable HTTP) | `https://your-domain.com/api/v1/mcp` |
 | Auth | `Authorization: Bearer bcmcp_…` (PAT) |
 
-PAT and access tokens are strictly partitioned: **PATs only work against `/api/v1/mcp/*`** — every other API rejects PATs with 403. Conversely, regular access tokens cannot call MCP endpoints.
+> The legacy SSE endpoints (`/api/v1/mcp/sse` + `/api/v1/mcp/messages/`) have been replaced by Streamable HTTP and are no longer served.
+
+PAT and access tokens are strictly partitioned: **PATs only work against `/api/v1/mcp`** — every other API rejects PATs with 403. Conversely, regular access tokens cannot call MCP endpoints.
 
 ---
 
@@ -194,13 +208,20 @@ PAT and access tokens are strictly partitioned: **PATs only work against `/api/v
 **Q: LLM client can't connect**
 
 - Make sure the PAT starts with `bcmcp_…` (prefix is 14 chars), no leading/trailing spaces
-- Test the endpoint: `curl -H "Authorization: Bearer bcmcp_…" https://your-domain.com/api/v1/mcp/sse` should stream SSE (not 401/403)
+- Test the endpoint (should return 200 + `serverInfo`, not 401/403/404):
+  ```bash
+  curl -X POST https://your-domain.com/api/v1/mcp \
+    -H "Authorization: Bearer bcmcp_…" \
+    -H "Accept: application/json, text/event-stream" \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+  ```
 - Check server logs for 401 — "Token expired" → PAT past its expiration; "Invalid token" → check the token spelling
 
 **Q: LLM tool call returns "PAT missing required scope: mcp:write"**
 
 - The token doesn't have write scope. Open the web settings page, edit the token, check "Read + write" — no need to recreate.
-- After the edit you must **reconnect the LLM client** for the new scope to take effect — the SSE long connection caches the initial scope.
+- After the edit you must **reconnect the LLM client** for the new scope to take effect — clients cache the scope / tool list from the first connection.
 
 **Q: `delete_transaction` keeps returning "confirmation_required"**
 

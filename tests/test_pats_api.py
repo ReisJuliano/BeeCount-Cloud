@@ -337,8 +337,8 @@ def test_pat_cannot_create_another_pat(monkeypatch) -> None:
 def test_mcp_endpoint_rejects_missing_auth(monkeypatch) -> None:
     client = _make_client(monkeypatch)
     try:
-        # 直接 GET /api/v1/mcp/sse 不带 Authorization
-        res = client.get("/api/v1/mcp/sse")
+        # 直接 GET /api/v1/mcp 不带 Authorization
+        res = client.get("/api/v1/mcp")
         assert res.status_code == 401
     finally:
         app.dependency_overrides.clear()
@@ -351,7 +351,7 @@ def test_mcp_endpoint_rejects_jwt_access_token(monkeypatch) -> None:
         user = _register(client)
         token = user["access_token"]
         res = client.get(
-            "/api/v1/mcp/sse",
+            "/api/v1/mcp",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert res.status_code == 403
@@ -364,7 +364,7 @@ def test_mcp_endpoint_rejects_garbage_pat(monkeypatch) -> None:
     client = _make_client(monkeypatch)
     try:
         res = client.get(
-            "/api/v1/mcp/sse",
+            "/api/v1/mcp",
             headers={"Authorization": "Bearer bcmcp_garbage_token_xxxxxxxxxxxxxxxxxx"},
         )
         assert res.status_code == 401
@@ -393,7 +393,7 @@ def test_mcp_endpoint_rejects_revoked_pat(monkeypatch) -> None:
 
         # 用已撤销 PAT 调 MCP — 401
         res = client.get(
-            "/api/v1/mcp/sse",
+            "/api/v1/mcp",
             headers={"Authorization": f"Bearer {pat_plaintext}"},
         )
         assert res.status_code == 401

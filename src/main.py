@@ -12,6 +12,7 @@ ensure_jwt_secret()
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.routing import Route
 from fastapi.responses import FileResponse, PlainTextResponse
 from sqlalchemy import text
 
@@ -164,7 +165,15 @@ app.include_router(
     prefix=f"{settings.api_prefix}/profile/mcp-calls",
     tags=["mcp-calls"],
 )
-app.mount(f"{settings.api_prefix}/mcp", mcp_server.app)
+# Streamable HTTP MCP 端点。用精确 Route(而非 app.mount)挂载:mount 对
+# "无尾斜杠的根请求"(POST /api/v1/mcp)会 307 重定向到带斜杠,而内置 HTTP
+# 客户端(非浏览器,如 Hermes)未必跟随 307 的 POST → 连不上。两条精确 Route
+# 覆盖带/不带尾斜杠,都直接命中、无重定向。endpoint 是 ASGI app
+# (PATAuthMiddleware 包 StreamableHTTPASGIApp),Starlette 对 ASGI endpoint
+# 不限制 HTTP method,POST/GET/DELETE 都放行给它处理。必须在下面 SPA
+# catch-all(GET /{full_path})之前注册,否则 streamable 的 GET 通道被 SPA 抢走。
+for _mcp_path in (f"{settings.api_prefix}/mcp", f"{settings.api_prefix}/mcp/"):
+    app.router.routes.append(Route(_mcp_path, mcp_server.app))
 app.include_router(ai_router.router, prefix=f"{settings.api_prefix}/ai", tags=["ai"])
 app.include_router(
     import_router.router,
@@ -246,6 +255,32 @@ async def _stop_backup_scheduler() -> None:  # noqa: B008
         get_scheduler().shutdown()
     except Exception:
         logging.getLogger(__name__).exception("scheduler shutdown failed")
+
+
+# ============================================================================
+# MCP Streamable HTTP — session manager 生命周期。Starlette 的 Mount 不传播
+# 子 app 的 lifespan,而 StreamableHTTPSessionManager 必须先进入 run()
+# (anyio task group)才能处理请求,所以在主 app 的 startup/shutdown 手动
+# 进入/退出。run() 只能进一次(内部 _has_started 保护),用 app.state 幂等
+# guard 防重复。测试不触发 lifespan(TestClient 不带 with 上下文),不受影响。
+# ============================================================================
+
+
+@app.on_event("startup")
+async def _start_mcp_streamable() -> None:  # noqa: B008
+    if getattr(app.state, "_mcp_streamable_cm", None) is not None:
+        return
+    cm = mcp_server.mcp.session_manager.run()
+    await cm.__aenter__()
+    app.state._mcp_streamable_cm = cm
+
+
+@app.on_event("shutdown")
+async def _stop_mcp_streamable() -> None:  # noqa: B008
+    cm = getattr(app.state, "_mcp_streamable_cm", None)
+    if cm is not None:
+        await cm.__aexit__(None, None, None)
+        app.state._mcp_streamable_cm = None
 
 
 # ============================================================================

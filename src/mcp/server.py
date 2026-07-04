@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp.server import StreamableHTTPASGIApp
 from mcp.server.transport_security import TransportSecuritySettings
 
 from ..database import SessionLocal
@@ -165,6 +166,10 @@ async def _logged_call(
 # Bearer + CORS 是重叠的,关掉,把 host/origin 校验留给上游反代。
 mcp = FastMCP(
     "BeeCount Cloud",
+    # Streamable HTTP transport:无状态(适合反代 / 无粘性负载均衡)+ 单次
+    # JSON 响应(纯 request-response 的 tool 调用不需要 server 主动推流)。
+    stateless_http=True,
+    json_response=True,
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
     ),
@@ -481,22 +486,28 @@ async def parse_and_create_from_text(
 
 
 # ============================================================================
-# ASGI mount — wrap FastMCP's SSE app with PAT auth middleware
+# ASGI mount — wrap FastMCP's Streamable HTTP app with PAT auth middleware
 # ============================================================================
 
 
 def _build_app():
-    """Build the Starlette ASGI app to mount under `/api/v1/mcp`.
+    """Build the ASGI app to mount at `/api/v1/mcp`.
 
-    FastMCP exposes `sse_app()` (Starlette) which provides:
-      - GET  /sse        — SSE connection
-      - POST /messages/  — client → server messages
+    Streamable HTTP transport(单端点 `POST /api/v1/mcp`),取代 MCP 官方已弃用
+    的老式 SSE(`GET /sse` + `POST /messages/`)。
 
-    We wrap it with `PATAuthMiddleware` so every connection (including the
-    initial SSE handshake) is gated on a valid `Authorization: Bearer bcmcp_…`.
+    `streamable_http_app()` 只调一次用来懒创建 session manager;它返回的
+    Starlette 我们不用 —— 那个把 handler 挂在子路径 `/mcp` 且自带 lifespan,
+    `app.mount()` 后 Starlette 不会传播子 app 的 lifespan。这里改取路径无关的
+    `StreamableHTTPASGIApp` 直接挂在 mount 根,对外端点就干净地是
+    `/api/v1/mcp`(与 `.well-known/oauth-protected-resource` 的 resource 对齐)。
+
+    session manager 的 `.run()` 由 `src.main` 的 startup/shutdown 负责进入/退出。
+
+    外层套 `PATAuthMiddleware`,每个请求都要 `Authorization: Bearer bcmcp_…`。
     """
-    sse_app = mcp.sse_app()
-    return PATAuthMiddleware(sse_app)
+    mcp.streamable_http_app()  # 触发 session manager 懒创建(返回的 Starlette 不用)
+    return PATAuthMiddleware(StreamableHTTPASGIApp(mcp.session_manager))
 
 
 # 模块级 ASGI app:`src.main` 直接 `app.mount(prefix, mcp_server.app)`。

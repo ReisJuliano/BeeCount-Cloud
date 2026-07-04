@@ -1,4 +1,9 @@
-"""MCP SSE handshake smoke tests.
+"""MCP 鉴权 / metadata smoke tests(原 SSE handshake)。
+
+注意:MCP transport 已从老式 SSE 替换为 Streamable HTTP(见
+test_mcp_streamable_http.py)。本文件保留 —— 这些测试实际覆盖的是 PAT 校验、
+`.well-known/oauth-protected-resource` metadata、transport_security 开关,
+与具体 transport 无关,对 Streamable HTTP 同样适用。
 
 历史:Claude Code / Cursor 客户端连 BeeCount Cloud MCP 时报两个错:
   1. `GET /api/v1/mcp/sse` → 500 ValueError 'Request validation failed'

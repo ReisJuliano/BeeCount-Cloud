@@ -39,10 +39,23 @@ LLM 自动调对应 tool,你不用打开 BeeCount。MCP 创建的交易会自动
 
 ### 2. 在 LLM 客户端配置
 
-> 三个客户端用 `mcp-remote` (npm) 把 stdio 桥到 BeeCount Cloud 的 SSE endpoint。统一把下面占位符替换成真实值:
+BeeCount Cloud 的 MCP 用 **Streamable HTTP**(单端点),端点是部署地址加 `/api/v1/mcp`。
+
+> 下面统一把占位符替换成真实值:
 >
 > - `https://your-domain.com` → BeeCount Cloud 部署地址(也可以是 `http://192.168.x.x:8080` 等内网/Tailscale 地址)
 > - `bcmcp_xxx...` → 上一步生成的 PAT 明文
+
+**推荐:原生支持 Streamable HTTP 的客户端直连,无需 `mcp-remote`。** 例如 Claude Code:
+
+```bash
+claude mcp add --transport http beecount https://your-domain.com/api/v1/mcp \
+  --header "Authorization: Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+新开一个会话,`claude mcp get beecount` 显示 `✔ Connected` 即成。其它带内置 HTTP MCP 客户端的 agent 同理:直接填端点 URL `https://your-domain.com/api/v1/mcp` + 请求头 `Authorization: Bearer bcmcp_…` 即可。
+
+**仅支持 stdio 的客户端(Claude Desktop / Cursor / Cline)** 用 `mcp-remote`(npm)桥接到同一个 HTTP 端点 —— **URL 用 `/api/v1/mcp`、不再带 `/sse`**,`mcp-remote` 会自动协商 Streamable HTTP:
 
 #### Claude Desktop
 
@@ -58,7 +71,7 @@ LLM 自动调对应 tool,你不用打开 BeeCount。MCP 创建的交易会自动
       "args": [
         "-y",
         "mcp-remote",
-        "https://your-domain.com/api/v1/mcp/sse",
+        "https://your-domain.com/api/v1/mcp",
         "--header",
         "Authorization:Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       ]
@@ -83,7 +96,7 @@ LLM 自动调对应 tool,你不用打开 BeeCount。MCP 创建的交易会自动
       "args": [
         "-y",
         "mcp-remote",
-        "https://your-domain.com/api/v1/mcp/sse",
+        "https://your-domain.com/api/v1/mcp",
         "--header",
         "Authorization:Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       ]
@@ -106,7 +119,7 @@ VS Code → Cline 图标 → 右上角 `…` → **Edit MCP Settings**:
       "args": [
         "-y",
         "mcp-remote",
-        "https://your-domain.com/api/v1/mcp/sse",
+        "https://your-domain.com/api/v1/mcp",
         "--header",
         "Authorization:Bearer bcmcp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       ],
@@ -132,11 +145,12 @@ LLM 客户端连上之后:
 
 | | |
 |---|---|
-| SSE 连接 | `https://your-domain.com/api/v1/mcp/sse` |
-| 消息回信道 | `https://your-domain.com/api/v1/mcp/messages/` |
+| MCP 端点(Streamable HTTP) | `https://your-domain.com/api/v1/mcp` |
 | 鉴权 | `Authorization: Bearer bcmcp_…`(PAT) |
 
-PAT 跟 access token 严格分流:**PAT 只能用在 `/api/v1/mcp/*`**,所有其他 API 接收 PAT 都返回 403。同理 access token 不能用来调 MCP endpoint。
+> 早期版本用的老式 SSE 端点(`/api/v1/mcp/sse` + `/api/v1/mcp/messages/`)已被 Streamable HTTP 取代,不再提供。
+
+PAT 跟 access token 严格分流:**PAT 只能用在 `/api/v1/mcp`**,所有其他 API 接收 PAT 都返回 403。同理 access token 不能用来调 MCP endpoint。
 
 ---
 
@@ -193,13 +207,20 @@ PAT 跟 access token 严格分流:**PAT 只能用在 `/api/v1/mcp/*`**,所有其
 **问:LLM 客户端连不上**
 
 - 检查 PAT 是不是 `bcmcp_…` 开头(以及前缀 14 位),粘贴时别带空格
-- 测试 endpoint:`curl -H "Authorization: Bearer bcmcp_…" https://your-domain.com/api/v1/mcp/sse` 应该返回 SSE 流(不是 401/403)
+- 测试 endpoint(应返回 200 + `serverInfo`,不是 401/403/404):
+  ```bash
+  curl -X POST https://your-domain.com/api/v1/mcp \
+    -H "Authorization: Bearer bcmcp_…" \
+    -H "Accept: application/json, text/event-stream" \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+  ```
 - 看 server log 是否有 401 错误 — 如果是 "Token expired" 检查 PAT 有效期;如果是 "Invalid token" 检查 token 拼写
 
 **问:LLM 调 tool 报 "PAT missing required scope: mcp:write"**
 
 - 创建 token 时没勾"读+写"。回 Web 设置页编辑该 token、勾上写权限即可(无需重建)
-- 注意:编辑后需要**重连 LLM 客户端**才能生效 — SSE 长连接会缓存初始 scope
+- 注意:编辑后需要**重连 LLM 客户端**才能生效 — 客户端会缓存首次拿到的 scope / 工具列表
 
 **问:`delete_transaction` 总是返"confirmation_required"**
 
