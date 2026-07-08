@@ -23,7 +23,8 @@ export function formatAmountCny(value: number | null | undefined): string {
  *
  * - 中文环境：< 1 万保留两位；≥ 1 万按 1-2 位小数折算成 "X.X万"。
  *   万字单位由 `wanUnit` 指定 —— zh-CN「万」/ zh-TW「萬」,默认「万」。
- * - 其他环境：≥ 100 万折算 M、≥ 1 千折算 k，< 1 千保留两位。
+ * - 其他环境：≥ 100 万折算 M、≥ 1 万折算 k，< 1 万保留两位(跟中文档位对齐 —— 之前
+ *   ≥ 1 千就折算,导致 1450 这类日常金额（房租等）也被压成 "1.5k",精度损失太明显)。
  * - currencyCode 传 null 时不带币种符号（BankCardTile 独立展示 currency pill，
  *   不想在金额字符串里再重复一次）。
  */
@@ -56,7 +57,7 @@ export function formatBalanceCompact(
     const formatted = Math.abs(r1 * 1_000_000 - absVal) > 1000 ? m.toFixed(2) : m.toFixed(1)
     return `${sign}${trimZero(formatted)}M`
   }
-  if (absVal >= 1000) {
+  if (absVal >= 10000) {
     const k = absVal / 1000
     const r1 = Number(k.toFixed(1))
     const formatted = Math.abs(r1 * 1000 - absVal) > 100 ? k.toFixed(2) : k.toFixed(1)
