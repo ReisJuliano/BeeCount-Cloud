@@ -79,7 +79,7 @@ export function HomeMonthCategoryDonut({ ranks, currency = 'CNY' }: Props) {
             {t('home.monthDonut.empty')}
           </div>
         ) : (
-          <div className="flex items-center gap-5">
+          <div className="flex flex-col items-center gap-5 sm:flex-row">
             <div className="relative h-40 w-40 shrink-0">
               <div
                 className="absolute inset-0 rounded-full"
@@ -104,7 +104,7 @@ export function HomeMonthCategoryDonut({ ranks, currency = 'CNY' }: Props) {
                 </div>
               </div>
             </div>
-            <ul className="min-w-0 flex-1 space-y-1.5">
+            <ul className="w-full min-w-0 flex-1 space-y-1.5">
               {slices.map((s, i) => {
                 const color =
                   s.name === otherLabel ? OTHER_COLOR : PALETTE[i % PALETTE.length]
