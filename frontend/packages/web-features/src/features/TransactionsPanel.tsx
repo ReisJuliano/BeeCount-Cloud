@@ -704,6 +704,7 @@ export function TransactionsPanel({
         iconPreviewUrlByFileId={iconPreviewUrlByFileId}
         selectedId={selectedCategoryRow?.id}
         title={t('transactions.placeholder.categoryName')}
+        emptyText={t('categories.empty.byType')}
         onSelect={(cat) => {
           onFormChange({
             ...form,

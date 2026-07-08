@@ -330,6 +330,7 @@ export function BudgetsPanel({
         iconPreviewUrlByFileId={iconPreviewUrlByFileId}
         selectedId={form.category_id || undefined}
         title={t('budgets.placeholder.category')}
+        emptyText={t('categories.empty.byType')}
         onSelect={(cat) =>
           onFormChange({
             ...form,

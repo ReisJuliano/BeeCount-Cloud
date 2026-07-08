@@ -2206,6 +2206,7 @@ export function TransactionsPage() {
         iconPreviewUrlByFileId={categoryIconPreviewByFileId}
         selectedId={txFilterDraft.categorySyncId || undefined}
         title={t('shell.filter.category')}
+        emptyText={t('categories.empty.byType')}
         onSelect={(cat) =>
           setTxFilterDraft((prev) => ({
             ...prev,

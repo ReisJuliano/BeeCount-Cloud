@@ -394,6 +394,7 @@ function TxCard({
           rows={categories}
           selectedId={draft.categoryId || null}
           title={t('cmdk.parseTx.pickCategory')}
+          emptyText={t('categories.empty.byType')}
           onSelect={(c) => {
             onChange({ categoryId: c.id ?? '', categoryName: c.name })
             setCatPickerOpen(false)

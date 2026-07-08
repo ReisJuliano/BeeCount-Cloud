@@ -110,7 +110,7 @@ export function CategorySelector({
   if (topLevels.length === 0) {
     return (
       <div className={`py-8 text-center text-sm text-muted-foreground ${className || ''}`.trim()}>
-        {emptyText ?? '暂无分类'}
+        {emptyText ?? 'No categories'}
       </div>
     )
   }
