@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from './i18n/en'
 import zhCN from './i18n/zh-CN'
 import zhTW from './i18n/zh-TW'
+import ptBR from './i18n/pt-BR'
 import { localizeError } from './i18n/errors'
 import { formatAmountCny, formatCompactTick, formatIsoDateTime } from './i18n/format'
 
@@ -130,6 +131,7 @@ describe('i18n parity', () => {
   const enKeys = new Set(Object.keys(en))
   const zhCNKeys = new Set(Object.keys(zhCN))
   const zhTWKeys = new Set(Object.keys(zhTW))
+  const ptBRKeys = new Set(Object.keys(ptBR))
 
   const diff = (a: Set<string>, b: Set<string>) =>
     [...a].filter((k) => !b.has(k)).sort()
@@ -137,6 +139,7 @@ describe('i18n parity', () => {
   const cases = [
     { name: 'zh-CN', keys: zhCNKeys },
     { name: 'zh-TW', keys: zhTWKeys },
+    { name: 'pt-BR', keys: ptBRKeys },
   ] as const
 
   for (const { name, keys } of cases) {
@@ -162,7 +165,7 @@ describe('i18n parity', () => {
   }
 
   it('每个 locale 的所有值都是非空字符串', () => {
-    for (const [name, dict] of Object.entries({ en, 'zh-CN': zhCN, 'zh-TW': zhTW })) {
+    for (const [name, dict] of Object.entries({ en, 'zh-CN': zhCN, 'zh-TW': zhTW, 'pt-BR': ptBR })) {
       const blanks = Object.entries(dict).filter(
         ([, value]) => typeof value !== 'string' || value.trim() === '',
       )

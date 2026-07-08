@@ -1,6 +1,6 @@
 export const LOCALE_STORAGE_KEY = 'beecount.locale'
 
-export const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en'] as const
+export const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'pt-BR'] as const
 export type Locale = (typeof SUPPORTED_LOCALES)[number]
 
 export function normalizeLocale(raw: string | null | undefined): Locale {
@@ -8,6 +8,7 @@ export function normalizeLocale(raw: string | null | undefined): Locale {
   const input = raw.toLowerCase()
   if (input === 'zh-tw' || input === 'zh-hk' || input === 'zh-mo') return 'zh-TW'
   if (input.startsWith('zh')) return 'zh-CN'
+  if (input.startsWith('pt')) return 'pt-BR'
   return 'en'
 }
 
