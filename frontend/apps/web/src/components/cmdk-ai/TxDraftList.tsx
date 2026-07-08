@@ -23,7 +23,7 @@ import {
   useT,
   useToast,
 } from '@beecount/ui'
-import { CategoryPickerDialog } from '@beecount/web-features'
+import { CategoryPickerDialog, parseAmountInput } from '@beecount/web-features'
 
 import { useAuth } from '../../context/AuthContext'
 
@@ -117,7 +117,7 @@ export function TxDraftList({
     try {
       const items: BatchTxItem[] = selected.map((d) => ({
         tx_type: d.type,
-        amount: Number(d.amountText) || 0,
+        amount: parseAmountInput(d.amountText),
         happened_at: d.happenedAtIso,
         note: d.note || null,
         // 关键:同时传 name + id(server projection 用 id 关联,name 用作显示)

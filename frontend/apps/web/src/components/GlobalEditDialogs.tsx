@@ -17,6 +17,7 @@ import { useT, useToast } from '@beecount/ui'
 import {
   CategoriesPanel,
   categoryDefaults,
+  parseAmountInput,
   TransactionsPanel,
   txDefaults,
   type CategoryForm,
@@ -182,7 +183,7 @@ export function GlobalEditDialogs() {
       notifyError(new Error(t('transactions.error.ledgerRequired')))
       return false
     }
-    const amountNum = Number((editTxForm.amount || '').toString().trim())
+    const amountNum = parseAmountInput(editTxForm.amount)
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
       notifyError(new Error(t('transactions.error.amountInvalid')))
       return false

@@ -87,6 +87,7 @@ import {
   TransactionsPanel,
   canManageLedger,
   canWriteTransactions,
+  parseAmountInput,
   txDefaults,
   type TxForm
 } from '@beecount/web-features'
@@ -618,8 +619,8 @@ export function TransactionsPage() {
       //   - dateFrom: 'YYYY-MM-DD' → ISO datetime 当天 00:00 (UTC)
       //   - dateTo:   'YYYY-MM-DD' → ISO datetime **次日** 00:00 (UTC),
       //     server 端用 happened_at < date_to,正好覆盖整个 dateTo 当天
-      const minNum = Number(txFilterApplied.amountMin || '')
-      const maxNum = Number(txFilterApplied.amountMax || '')
+      const minNum = parseAmountInput(txFilterApplied.amountMin)
+      const maxNum = parseAmountInput(txFilterApplied.amountMax)
       const dateFromIso = txFilterApplied.dateFrom
         ? new Date(`${txFilterApplied.dateFrom}T00:00:00`).toISOString()
         : undefined
@@ -1359,7 +1360,7 @@ export function TransactionsPage() {
     }
     // 金额必须 > 0 —— mobile addTransaction 也校验,跨端一致防止 0 元交易
     // 污染统计 / 余额。
-    const amountNum = Number((txForm.amount || '').toString().trim())
+    const amountNum = parseAmountInput(txForm.amount)
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
       setErrorNotice(t('transactions.error.amountInvalid'))
       return false
@@ -1414,7 +1415,7 @@ export function TransactionsPage() {
 
       const payload = {
         tx_type: txForm.tx_type,
-        amount: Number(txForm.amount || 0),
+        amount: parseAmountInput(txForm.amount),
         happened_at: txForm.happened_at || new Date().toISOString(),
         note: txForm.note || null,
         category_name: isTransfer ? null : categoryName || null,
@@ -1818,10 +1819,10 @@ export function TransactionsPage() {
                             categorySyncId: filter.categorySyncId || undefined,
                             tagSyncId: filter.tagSyncId || undefined,
                             amountMin: filter.amountMin
-                              ? Number(filter.amountMin)
+                              ? parseAmountInput(filter.amountMin)
                               : undefined,
                             amountMax: filter.amountMax
-                              ? Number(filter.amountMax)
+                              ? parseAmountInput(filter.amountMax)
                               : undefined,
                             lang: locale,
                           })

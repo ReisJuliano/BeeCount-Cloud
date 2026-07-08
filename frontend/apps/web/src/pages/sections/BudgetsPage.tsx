@@ -15,6 +15,7 @@ import {
   BudgetsPanel,
   budgetDefaults,
   currentMonthRange,
+  parseAmountInput,
   type BudgetForm,
   type BudgetUsage,
 } from '@beecount/web-features'
@@ -141,7 +142,7 @@ export function BudgetsPage() {
       toast.error(t('shell.selectLedgerFirst'), t('notice.error'))
       return false
     }
-    const amount = Number((form.amount || '').toString().trim())
+    const amount = parseAmountInput(form.amount)
     if (!Number.isFinite(amount) || amount <= 0) {
       toast.error(t('budgets.error.amountInvalid'), t('notice.error'))
       return false

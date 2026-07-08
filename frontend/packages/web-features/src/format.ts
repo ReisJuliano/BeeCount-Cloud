@@ -1,5 +1,18 @@
 import type { ReadLedger } from '@beecount/api-client'
 
+/**
+ * 解析用户输入的金额字符串,同时接受「.」和「,」作为小数分隔符
+ * (pt-BR 等语言习惯用逗号,`Number("10,50")` 原生会得到 NaN)。
+ * 只替换最后一个逗号,避免误伤千分位逗号(如粘贴 "1,234" 场景)。
+ */
+export function parseAmountInput(input: string | null | undefined): number {
+  const trimmed = (input || '').toString().trim()
+  if (!trimmed) return 0
+  const normalized = trimmed.replace(/,(\d{1,2})$/, '.$1')
+  const n = Number(normalized)
+  return Number.isNaN(n) ? 0 : n
+}
+
 export function formatAmountCny(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '-'
   return `CNY ${value.toFixed(2)}`

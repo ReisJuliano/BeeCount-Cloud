@@ -21,7 +21,7 @@ import {
   type ExchangeRateOverride,
   type ExchangeRatesResponse,
 } from '@beecount/api-client'
-import { effectiveRateToBase } from '@beecount/web-features'
+import { effectiveRateToBase, parseAmountInput } from '@beecount/web-features'
 
 import { useAuth } from '../../context/AuthContext'
 import { localizeError } from '../../i18n/errors'
@@ -126,7 +126,7 @@ export function SettingsExchangeRatesSection() {
 
   const submitEdit = async (quote: string) => {
     if (savingQuote) return
-    const rate = Number(draft)
+    const rate = parseAmountInput(draft)
     if (!Number.isFinite(rate) || rate <= 0) {
       toast.error(t('accounts.error.balanceInvalid'), t('notice.error'))
       return
@@ -320,7 +320,7 @@ export function SettingsExchangeRatesSection() {
                         </Button>
                       </div>
                       {(() => {
-                        const r = Number(draft)
+                        const r = parseAmountInput(draft)
                         if (!Number.isFinite(r) || r <= 0) return null
                         return (
                           <p className="text-[11px] text-muted-foreground">

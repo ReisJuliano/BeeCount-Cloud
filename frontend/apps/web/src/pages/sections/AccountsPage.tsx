@@ -41,6 +41,7 @@ import {
   computeTypeGroups,
   effectiveRateToBase,
   mergeGroupsToBase,
+  parseAmountInput,
   splitByCurrency,
   type AccountForm,
   type CurrencyBucket,
@@ -212,7 +213,7 @@ export function AccountsPage() {
       toast.error(t('accounts.error.nameDuplicate'), t('notice.error'))
       return false
     }
-    const initialBalanceNum = Number(form.initial_balance || 0)
+    const initialBalanceNum = parseAmountInput(form.initial_balance)
     if (!Number.isFinite(initialBalanceNum)) {
       toast.error(t('accounts.error.balanceInvalid'), t('notice.error'))
       return false
