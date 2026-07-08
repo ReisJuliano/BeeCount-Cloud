@@ -1,9 +1,9 @@
 {
   "id": "/?source=pwa",
-  "name": "蜜蜂记账",
-  "short_name": "蜜蜂记账",
-  "description": "自部署的个人记账云 · 移动端 / 网页端实时同步",
-  "lang": "zh-CN",
+  "name": "BeeCount Cloud",
+  "short_name": "BeeCount",
+  "description": "Nuvem de finanças pessoais self-hosted · sincronização em tempo real entre app e web",
+  "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -50,9 +50,9 @@
   ],
   "shortcuts": [
     {
-      "name": "记一笔",
-      "short_name": "记账",
-      "description": "快速新建一笔交易",
+      "name": "Novo lançamento",
+      "short_name": "Lançar",
+      "description": "Criar rapidamente uma nova transação",
       "url": "/app/transactions?action=quick-add&source=shortcut",
       "icons": [
         {
@@ -63,9 +63,9 @@
       ]
     },
     {
-      "name": "今日账单",
-      "short_name": "今日",
-      "description": "查看今天的所有交易",
+      "name": "Lançamentos de hoje",
+      "short_name": "Hoje",
+      "description": "Ver todas as transações de hoje",
       "url": "/app/transactions?range=today&source=shortcut",
       "icons": [
         {
@@ -76,9 +76,9 @@
       ]
     },
     {
-      "name": "本月预算",
-      "short_name": "预算",
-      "description": "查看本月预算执行情况",
+      "name": "Orçamento do mês",
+      "short_name": "Orçamento",
+      "description": "Ver a execução do orçamento deste mês",
       "url": "/app/budgets?source=shortcut",
       "icons": [
         {
