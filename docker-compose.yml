@@ -1,5 +1,12 @@
 services:
   beecount-cloud:
+    # ⚠️ WhatsApp bot (evolution-api + beecount-whatsapp-bot abaixo): os 3 MCP
+    # tools novos (get_account_balances / lookup_merchant_category /
+    # set_merchant_category, ver docs/MCP.md) só existem em produção se essa
+    # imagem for buildada a partir do Dockerfile local (`build: .`) — a
+    # imagem publicada abaixo é a do upstream e não tem esse código. Troque
+    # `image:` por `build: .` (ou publique sua própria imagem) antes de
+    # depender do bot.
     image: sunxiao0721/beecount-cloud:latest
     restart: unless-stopped
     ports:
@@ -38,5 +45,38 @@ services:
       # REGISTRATION_ENABLED: "false"
       # TOTP_ISSUER_NAME: "BeeCount"
 
+  # ===== WhatsApp bot: OCR de comprovante -> lançamento no BeeCount =====
+  # Ver ../BeeCount-WhatsApp-Bot/README.md pro passo a passo completo
+  # (parear número, achar o JID do contato, criar o PAT).
+  evolution-api:
+    image: atendai/evolution-api:latest
+    restart: unless-stopped
+    ports:
+      - "8880:8080" # expõe só se for usar o Manager web pra parear via QR
+    volumes:
+      - evolution_data:/evolution/instances
+    environment:
+      AUTHENTICATION_API_KEY: change-me-strong-random # tem que bater com EVOLUTION_API_KEY do bot
+      DATABASE_ENABLED: "false" # instância única, sem persistência multi-tenant — suficiente aqui
+
+  beecount-whatsapp-bot:
+    build: ../BeeCount-WhatsApp-Bot
+    restart: unless-stopped
+    depends_on:
+      - beecount-cloud
+      - evolution-api
+    volumes:
+      - whatsapp_bot_data:/data
+    environment:
+      BEECOUNT_BASE_URL: http://beecount-cloud:8080
+      BEECOUNT_PAT: "" # bcmcp_... — criar em Web Console > Settings > Developer (mcp:read + mcp:write)
+      EVOLUTION_BASE_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: change-me-strong-random # mesmo valor de AUTHENTICATION_API_KEY acima
+      EVOLUTION_INSTANCE: beecount-bot
+      CONTACT_JID: "5542991435778@s.whatsapp.net" # ver README do bot pra confirmar o JID exato
+      STATE_FILE_PATH: /data/state.json
+
 volumes:
   beecount_data:
+  evolution_data:
+  whatsapp_bot_data:

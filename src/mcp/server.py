@@ -1,4 +1,4 @@
-"""BeeCount Cloud MCP server — 注册所有 18 个 tool,导出 ASGI app。
+"""BeeCount Cloud MCP server — 注册所有 21 个 tool,导出 ASGI app。
 
 设计:.docs/mcp-server-design.md。
 
@@ -36,7 +36,7 @@ from .auth import (
     get_mcp_user_from_context,
     require_mcp_scope,
 )
-from .tools import read_tools, write_tools
+from .tools import merchant_tools, read_tools, write_tools
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ mcp = FastMCP(
 
 
 # ============================================================================
-# Read tools — 11 个,mcp:read scope
+# Read tools — 13 个,mcp:read scope
 # ============================================================================
 
 
@@ -274,6 +274,34 @@ async def list_accounts(
 
 
 @mcp.tool()
+async def get_account_balances(ctx: Context) -> list[dict[str, Any]]:
+    """Current balance per account (initial_balance + all income/expense/transfer since).
+
+    Used for a "what's my balance" style query. Accounts are user-global (not
+    per-ledger), so this sums transactions across all of the user's ledgers.
+    """
+    return await _logged_call(
+        ctx, name="get_account_balances", scope=SCOPE_MCP_READ, kwargs={},
+        body=lambda user: asyncio.to_thread(read_tools.get_account_balances, user),
+    )
+
+
+@mcp.tool()
+async def lookup_merchant_category(ctx: Context, merchant_name: str) -> dict[str, Any]:
+    """Look up the category previously learned for a merchant/payee name.
+
+    Returns {merchant_name, category_name}; category_name is null if this
+    merchant hasn't been seen before — in that case, ask the user and call
+    `set_merchant_category` to remember it for next time.
+    """
+    kw = {"merchant_name": merchant_name}
+    return await _logged_call(
+        ctx, name="lookup_merchant_category", scope=SCOPE_MCP_READ, kwargs=kw,
+        body=lambda user: asyncio.to_thread(merchant_tools.lookup_merchant_category, user, **kw),
+    )
+
+
+@mcp.tool()
 async def list_tags(ctx: Context) -> list[dict[str, Any]]:
     """List all of the user's tags."""
     return await _logged_call(
@@ -335,7 +363,7 @@ async def search(ctx: Context, q: str, limit: int = 20) -> list[dict[str, Any]]:
 
 
 # ============================================================================
-# Write tools — 7 个,mcp:write scope
+# Write tools — 8 个,mcp:write scope
 # ============================================================================
 
 
@@ -465,6 +493,23 @@ async def update_budget(ctx: Context, budget_id: str, amount: float) -> dict[str
     return await _logged_call(
         ctx, name="update_budget", scope=SCOPE_MCP_WRITE, kwargs=kw,
         body=lambda user: write_tools.update_budget(user, **kw),
+    )
+
+
+@mcp.tool()
+async def set_merchant_category(
+    ctx: Context, merchant_name: str, category_name: str
+) -> dict[str, Any]:
+    """Remember which category a merchant/payee belongs to, for future lookups.
+
+    Call this after asking the user which category a new merchant should use
+    (via `lookup_merchant_category` returning null). Subsequent calls with the
+    same merchant_name will resolve without asking again.
+    """
+    kw = {"merchant_name": merchant_name, "category_name": category_name}
+    return await _logged_call(
+        ctx, name="set_merchant_category", scope=SCOPE_MCP_WRITE, kwargs=kw,
+        body=lambda user: asyncio.to_thread(merchant_tools.set_merchant_category, user, **kw),
     )
 
 

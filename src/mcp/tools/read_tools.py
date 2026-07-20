@@ -257,6 +257,89 @@ def list_accounts(user: User, *, account_type: str | None = None) -> list[dict[s
         ]
 
 
+def get_account_balances(user: User) -> list[dict[str, Any]]:
+    """Saldo atual por conta: initial_balance + income - expense, transfer
+    debita from_account / credita to_account. Contas são user-global (sem
+    ledger_id, mesmo padrão de `list_accounts`) — soma transações do usuário
+    em TODOS os ledgers, inclusive exclude_from_stats=true (esse flag só
+    afeta estatística de gasto, não o dinheiro que de fato saiu/entrou).
+    """
+    with SessionLocal() as db:
+        accounts = db.scalars(
+            select(UserAccountProjection).where(UserAccountProjection.user_id == user.id)
+        ).all()
+        seen: dict[str, UserAccountProjection] = {}
+        for a in accounts:
+            if a.sync_id not in seen:
+                seen[a.sync_id] = a
+        if not seen:
+            return []
+
+        delta: dict[str, float] = {sid: 0.0 for sid in seen}
+
+        income_rows = db.execute(
+            select(ReadTxProjection.account_sync_id, func.sum(ReadTxProjection.amount))
+            .where(
+                ReadTxProjection.user_id == user.id,
+                ReadTxProjection.tx_type == "income",
+                ReadTxProjection.account_sync_id.isnot(None),
+            )
+            .group_by(ReadTxProjection.account_sync_id)
+        ).all()
+        for sid, amt in income_rows:
+            if sid in delta:
+                delta[sid] += float(amt or 0)
+
+        expense_rows = db.execute(
+            select(ReadTxProjection.account_sync_id, func.sum(ReadTxProjection.amount))
+            .where(
+                ReadTxProjection.user_id == user.id,
+                ReadTxProjection.tx_type == "expense",
+                ReadTxProjection.account_sync_id.isnot(None),
+            )
+            .group_by(ReadTxProjection.account_sync_id)
+        ).all()
+        for sid, amt in expense_rows:
+            if sid in delta:
+                delta[sid] -= float(amt or 0)
+
+        transfer_out_rows = db.execute(
+            select(ReadTxProjection.from_account_sync_id, func.sum(ReadTxProjection.amount))
+            .where(
+                ReadTxProjection.user_id == user.id,
+                ReadTxProjection.tx_type == "transfer",
+                ReadTxProjection.from_account_sync_id.isnot(None),
+            )
+            .group_by(ReadTxProjection.from_account_sync_id)
+        ).all()
+        for sid, amt in transfer_out_rows:
+            if sid in delta:
+                delta[sid] -= float(amt or 0)
+
+        transfer_in_rows = db.execute(
+            select(ReadTxProjection.to_account_sync_id, func.sum(ReadTxProjection.amount))
+            .where(
+                ReadTxProjection.user_id == user.id,
+                ReadTxProjection.tx_type == "transfer",
+                ReadTxProjection.to_account_sync_id.isnot(None),
+            )
+            .group_by(ReadTxProjection.to_account_sync_id)
+        ).all()
+        for sid, amt in transfer_in_rows:
+            if sid in delta:
+                delta[sid] += float(amt or 0)
+
+        return [
+            {
+                "account_name": a.name,
+                "account_type": a.account_type,
+                "currency": a.currency,
+                "balance": round(float(a.initial_balance or 0) + delta.get(a.sync_id, 0.0), 2),
+            }
+            for a in sorted(seen.values(), key=lambda r: (r.name or "").lower())
+        ]
+
+
 def list_tags(user: User) -> list[dict[str, Any]]:
     """列标签。"""
     with SessionLocal() as db:

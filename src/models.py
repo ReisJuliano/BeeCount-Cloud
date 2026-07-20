@@ -790,3 +790,22 @@ class BackupRunTarget(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     bytes_transferred: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class MerchantCategoryMapping(Base):
+    """estabelecimento → categoria, aprendido pelo WhatsApp bot (MCP write
+    tool `set_merchant_category`). Não é sync entity — não passa por
+    sync_applier / read_*_projection, não aparece em mobile/web. `merchant_key`
+    é o nome normalizado (`.strip().lower()`) usado como chave de lookup.
+    """
+
+    __tablename__ = "merchant_category_mapping"
+    __table_args__ = (
+        UniqueConstraint("user_id", "merchant_key", name="uq_merchant_category_user_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    merchant_key: Mapped[str] = mapped_column(Text, nullable=False)
+    category_name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
